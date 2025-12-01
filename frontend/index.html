@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>Reconstrução Rio Bonito</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1, h2 { margin-bottom: 8px; }
+    form { border: 1px solid #ddd; padding: 12px; margin-bottom: 16px; border-radius: 6px; }
+    label { display: block; margin-top: 8px; }
+    input, textarea, select { width: 100%; padding: 8px; margin-top: 4px; }
+    button { margin-top: 10px; padding: 8px 12px; cursor: pointer; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card { border: 1px solid #eee; padding: 10px; border-radius: 6px; background: #fafafa; }
+    .small { font-size: 0.9em; color: #666; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  </style>
+</head>
+<body>
+
+  <h1>Comunicação e organização de recursos</h1>
+  <p class="small">API: http://localhost:5000 · Frontend: http://localhost:8000</p>
+
+  <div class="grid">
+    <div>
+      <h2>Cadastrar local afetado</h2>
+      <form id="form-local">
+        <label>Nome do local
+          <input type="text" name="nome" required>
+        </label>
+        <label>Endereço
+          <input type="text" name="endereco" required>
+        </label>
+        <label>Descrição
+          <textarea name="descricao" required></textarea>
+        </label>
+        <label>Gravidade
+          <select name="gravidade">
+            <option value="baixa">baixa</option>
+            <option value="media">média</option>
+            <option value="alta">alta</option>
+          </select>
+        </label>
+        <button type="submit">Salvar local</button>
+        <div id="local-msg"></div>
+      </form>
+
+      <h2>Solicitação/Oferta de ajuda</h2>
+      <form id="form-ajuda">
+        <label>Tipo
+          <select name="tipo">
+            <option value="oferta">oferta</option>
+            <option value="solicitacao">solicitação</option>
+          </select>
+        </label>
+        <label>Descrição
+          <textarea name="descricao" required></textarea>
+        </label>
+        <label>Contato
+          <input type="text" name="contato" required>
+        </label>
+        <label>ID do local (opcional)
+          <input type="number" name="local_id">
+        </label>
+        <label>Status
+          <select name="status">
+            <option value="aberta">aberta</option>
+            <option value="em_andamento">em_andamento</option>
+            <option value="concluida">concluida</option>
+          </select>
+        </label>
+        <button type="submit">Registrar ajuda</button>
+        <div id="ajuda-msg"></div>
+      </form>
+    </div>
+
+    <div>
+      <h2>Locais cadastrados</h2>
+      <div id="locais" class="card"></div>
+
+      <h2>Ajudas registradas</h2>
+      <div id="ajudas" class="card"></div>
+
+      <h2>Clima (por bairro ou coordenadas)</h2>
+      <form id="form-clima" class="card">
+        <div class="row">
+          <div>
+            <label>Selecionar bairro</label>
+            <select name="bairro" id="bairro-select">
+              <option value="">-- selecione --</option>
+            </select>
+            <small class="small">Os bairros carregam da API em /bairros.</small>
+          </div>
+          <div>
+            <label>Latitude</label>
+            <input type="text" name="lat" id="lat" placeholder="-25.4870">
+            <label>Longitude</label>
+            <input type="text" name="lon" id="lon" placeholder="-52.5300">
+            <small class="small">Opcional: informe lat/lon manualmente.</small>
+          </div>
+        </div>
+        <button type="submit">Consultar clima</button>
+      </form>
+      <div id="clima" class="card"></div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:5000';
+
+    async function fetchJSON(url, options = {}) {
+      const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || 'Erro ao consultar API');
+      return data;
+    }
+
+    async function carregarBairros() {
+      try {
+        const bairros = await fetchJSON(`${API}/bairros`);
+        const select = document.getElementById('bairro-select');
+        select.innerHTML = '<option value="">-- selecione --</option>' +
+          bairros.map(b => `<option value="${b.bairro}" data-lat="${b.lat}" data-lon="${b.lon}">${b.bairro}</option>`).join('');
+        // Atualiza lat/lon quando selecionar bairro
+        select.addEventListener('change', (ev) => {
+          const opt = ev.target.selectedOptions[0];
+          const lat = opt?.getAttribute('data-lat');
+          const lon = opt?.getAttribute('data-lon');
+          if (lat && lon) {
+            document.getElementById('lat').value = lat;
+            document.getElementById('lon').value = lon;
+          }
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function carregarListas() {
+      try {
+        const locais = await fetchJSON(`${API}/locais`);
+        document.getElementById('locais').innerHTML =
+          locais.map(l => `<div><b>${l.nome}</b> — ${l.endereco}<br>${l.descricao}<br><span class="small">gravidade: ${l.gravidade} · id: ${l.id}</span></div>`).join('<hr>');
+      } catch (e) {
+        document.getElementById('locais').textContent = 'Erro ao carregar locais';
+      }
+      try {
+        const ajudas = await fetchJSON(`${API}/ajudas`);
+        document.getElementById('ajudas').innerHTML =
+          ajudas.map(a => `<div><b>${a.tipo}</b> — ${a.descricao}<br>contato: ${a.contato}<br><span class="small">local_id: ${a.local_id || '-'} · status: ${a.status}</span></div>`).join('<hr>');
+      } catch (e) {
+        document.getElementById('ajudas').textContent = 'Erro ao carregar ajudas';
+      }
+    }
+
+    document.getElementById('form-local').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const form = ev.target;
+      const payload = {
+        nome: form.nome.value,
+        endereco: form.endereco.value,
+        descricao: form.descricao.value,
+        gravidade: form.gravidade.value
+      };
+      const msg = document.getElementById('local-msg');
+      try {
+        const res = await fetchJSON(`${API}/locais`, { method: 'POST', body: JSON.stringify(payload) });
+        msg.textContent = `OK: ${res.msg} (id: ${res.id})`;
+        form.reset();
+        carregarListas();
+      } catch (e) {
+        msg.textContent = `Erro: ${e.message}`;
+      }
+    });
+
+    document.getElementById('form-ajuda').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const form = ev.target;
+      const payload = {
+        tipo: form.tipo.value,
+        descricao: form.descricao.value,
+        contato: form.contato.value,
+        local_id: form.local_id.value ? Number(form.local_id.value) : null,
+        status: form.status.value
+      };
+      const msg = document.getElementById('ajuda-msg');
+      try {
+        const res = await fetchJSON(`${API}/ajudas`, { method: 'POST', body: JSON.stringify(payload) });
+        msg.textContent = `OK: ${res.msg} (id: ${res.id})`;
+        form.reset();
+        carregarListas();
+      } catch (e) {
+        msg.textContent = `Erro: ${e.message}`;
+      }
+    });
+
+    document.getElementById('form-clima').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const form = ev.target;
+      const bairro = form.bairro.value;
+      const lat = form.lat.value;
+      const lon = form.lon.value;
+      const panel = document.getElementById('clima');
+      panel.textContent = 'Consultando...';
+      try {
+        let data;
+        if (bairro) {
+          data = await fetchJSON(`${API}/publico/clima/bairro?bairro=${encodeURIComponent(bairro)}`);
+        } else if (lat && lon) {
+          data = await fetchJSON(`${API}/publico/clima?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
+        } else {
+          throw new Error('Selecione um bairro ou informe lat/lon.');
+        }
+        const current = data.current || {};
+        const hourly = data.hourly || {};
+        panel.innerHTML = `
+          <div><b>Temperatura atual:</b> ${current.temperature_2m ?? '-'} °C</div>
+          <div><b>Vento atual:</b> ${current.wind_speed_10m ?? '-'} m/s</div>
+          <div class="small">Amostra próxima: ${hourly.time?.[0] || '-'} · temp: ${hourly.temperature_2m?.[0] ?? '-'} °C</div>
+        `;
+      } catch (e) {
+        panel.textContent = `Erro: ${e.message}`;
+      }
+    });
+
+    carregarBairros();
+    carregarListas();
+  </script>
+</body>
+</html>
