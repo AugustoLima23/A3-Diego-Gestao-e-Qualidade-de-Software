@@ -1,2 +1,2 @@
-# A3-Diego-Gestao-e-Qualidade-de-Software
-Projeto desenvolvido na unidade curricular Gestão e Qualidade de Software sob orientação do professor Diego
+# A3_Diego_GQSoftware_2025
+Projeto desenvolvido para a A3 na materia de Gestão e Qualidade de Software, feito com orientação do Professor Diego  

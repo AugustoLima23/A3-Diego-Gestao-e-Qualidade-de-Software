@@ -1,0 +1,7 @@
+Iniciar API: python app.py
+Abrir front: abrir arquivo index.html
+
+pips para instalar:
+pip install -r requirements.txt
+
+Executar testes: python -m pytest --cov=. --cov-report=term-missing
